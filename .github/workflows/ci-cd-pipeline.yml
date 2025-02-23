@@ -13,6 +13,18 @@ jobs:
       # Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full repository is checked out
+
+      # Debug: Check the file structure before building
+      - name: List files in repository
+        run: ls -R
+
+      # Verify Dockerfile exists before build
+      - name: Check if Dockerfiles exist
+        run: |
+          test -f ./todo-backend/Dockerfile && echo "Backend Dockerfile exists" || exit 1
+          test -f ./todo-frontend/Dockerfile && echo "Frontend Dockerfile exists" || exit 1
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
@@ -30,6 +42,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./todo-backend
+          file: ./todo-backend/Dockerfile  # Explicitly specify Dockerfile path
           push: true
           tags: waqarullah/todo-backend:latest
 
@@ -38,6 +51,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: ./todo-frontend
+          file: ./todo-frontend/Dockerfile  # Explicitly specify Dockerfile path
           push: true
           tags: waqarullah/todo-frontend:latest
 
@@ -72,16 +86,28 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Verify AWS CLI installation
+      - name: Verify AWS CLI
+        run: aws --version
+
       # Install kubectl
       - name: Install kubectl
         run: |
           curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
 
+      # Verify kubectl installation
+      - name: Verify kubectl
+        run: kubectl version --client
+
       # Update kubeconfig for EKS
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig --name ${{ secrets.EKS_CLUSTER_NAME }} --region ${{ secrets.AWS_REGION }}
+
+      # Verify Kubernetes cluster connection
+      - name: Verify EKS cluster
+        run: kubectl get nodes
 
       # Deploy to EKS
       - name: Deploy to EKS
